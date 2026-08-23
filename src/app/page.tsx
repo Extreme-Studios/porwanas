@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { medals, news, quickNews, registrationUrl } from "@/lib/data";
+import { useEffect, useState } from "react";
+import { contentDefaults, medals, news, quickNews, registrationUrl } from "@/lib/data";
 
 const Arrow = () => <span aria-hidden="true">→</span>;
 const Icon = ({ children }: { children: React.ReactNode }) => <span className="icon">{children}</span>;
 
 export default function Home() {
   const [open, setOpen] = useState(false);
+  const [content, setContent] = useState<any>(contentDefaults);
+  useEffect(() => { fetch("/api/content", { cache: "no-store" }).then((r) => r.json()).then((data) => { if (data.ok) setContent((prev: any) => Object.fromEntries(Object.keys(prev).map((key) => [key, data.content?.[key]?.length ? data.content[key] : prev[key]]))); }).catch(() => {}); }, []);
   const nav = ["Beranda", "Pendaftaran", "Struktur Organisasi", "Hasil Verifikasi"];
   return <main>
     <div className="topbar"><div className="shell top-content"><span>Portal Resmi Pekan Olahraga Wartawan Nasional</span><span>12–18 AGUSTUS 2026</span></div></div>
@@ -39,6 +41,7 @@ export default function Home() {
 
 function VerificationSection() {
   const [query, setQuery] = useState(""); const [items, setItems] = useState<{id:string;name:string;contingent:string;sport:string}[]>([]); const [state, setState] = useState("idle");
+  useEffect(() => { fetch("/api/verification?query=", { cache: "no-store" }).then(response => response.json()).then(data => { if (!data.ok) throw new Error(); setItems(data.items); setState("done"); }).catch(() => setState("error")); }, []);
   async function search(event: React.FormEvent) { event.preventDefault(); setState("loading"); try { const response = await fetch(`/api/verification?query=${encodeURIComponent(query)}`); const data = await response.json(); if (!data.ok) throw new Error(); setItems(data.items); setState("done"); } catch { setState("error"); } }
   return <section className="verification" id="hasil-verifikasi"><div className="shell verification-inner"><p className="eyebrow gold">INFORMASI PESERTA</p><h2>Hasil Verifikasi</h2><p className="lead">Cek peserta yang telah dinyatakan terverifikasi oleh panitia PORWANAS.</p><form className="verification-search" onSubmit={search}><label htmlFor="verification-query">Nama atau nomor registrasi</label><div><input id="verification-query" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Contoh: PRW-2026-000001"/><button className="button">Cari <Arrow/></button></div></form>{state === "loading" && <p className="verification-note">Memuat data...</p>}{state === "error" && <p className="verification-note error">Data belum dapat dimuat.</p>}{state === "done" && <div className="verification-results">{items.length ? items.map((person) => <article className="verified-card" key={person.id}><span className="verified-check">✓</span><div><p className="eyebrow gold">{person.id}</p><h3>{person.name}</h3><p>{person.contingent} <span>•</span> {person.sport}</p></div><b>Terverifikasi</b></article>) : <p className="verification-note">Belum ada peserta terverifikasi yang sesuai.</p>}</div>}</div></section>;
 }
