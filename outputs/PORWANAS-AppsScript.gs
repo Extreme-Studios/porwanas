@@ -38,7 +38,8 @@ function doPost(e) {
   try {
     const input = JSON.parse((e.postData && e.postData.contents) || '{}');
     let data;
-    if (input.action === 'login') data = login_(input);
+    if (input.action === 'publicVerified') data = publicVerified_(input);
+    else if (input.action === 'login') data = login_(input);
     else { requireSession_(input.token); data = protectedAction_(input); }
     return json_({ ok: true, ...data });
   } catch (err) { return json_({ ok: false, message: err.message || 'Terjadi kesalahan.' }); }
@@ -56,6 +57,16 @@ function protectedAction_(input) {
   if (input.action === 'saveContent') return saveContent_(input);
   if (input.action === 'changeCredentials') return changeCredentials_(input);
   throw new Error('Aksi tidak dikenali.');
+}
+
+function publicVerified_(input) {
+  const query = String(input.query || '').trim().toLowerCase();
+  const items = participants_().filter(person => {
+    const approved = String(person.status).toLowerCase() === 'terverifikasi';
+    const matches = !query || [person.id, person.name, person.contingent, person.sport].join(' ').toLowerCase().indexOf(query) >= 0;
+    return approved && matches;
+  }).map(person => ({ id: person.id, name: person.name, contingent: person.contingent || '-', sport: person.sport || '-', status: 'Terverifikasi' }));
+  return { items };
 }
 
 function login_(input) {
