@@ -103,7 +103,7 @@ function participants_() {
     const id = map.registration_id || ('PRW-' + new Date().getFullYear() + '-' + String(index + 1).padStart(6, '0'));
     if (!map.registration_id) formSheet.getRange(index + 2, headers.indexOf('registration_id') + 1).setValue(id);
     return {
-      id, name: pick_(map, ['nama_lengkap', 'nama', 'name']) || 'Tanpa nama',
+      id, name: pick_(map, ['nama_lengkap', 'nama_lengkap_peserta', 'nama', 'name']) || 'Tanpa nama',
       email: pick_(map, ['email', 'alamat_email']), contingent: pick_(map, ['provinsi_kontingen', 'kontingen', 'provinsi']),
       sport: pick_(map, ['cabang_olahraga', 'cabor', 'olahraga']), submittedAt: pick_(map, ['timestamp', 'stempel_waktu']),
       status: map.verification_status || 'Menunggu', notes: map.verification_notes || '', _row: index + 2,
