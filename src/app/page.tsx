@@ -16,7 +16,7 @@ export default function Home() {
     <section className="organization-section" id="struktur-organisasi"><div className="shell"><p className="eyebrow gold">PANITIA PORWANAS</p><h2>Struktur Organisasi</h2><div className="org-grid">{(content.organization || []).map((item: any) => <article className="org-card" key={item.id}><span className="org-avatar">{(item.name || "P").charAt(0)}</span><div><p>{item.title}</p><h3>{item.name}</h3></div></article>)}</div></div></section>
     <VerificationSection />
     <section className="sponsors shell" id="sponsor"><p className="eyebrow gold">DIDUKUNG OLEH</p><h2>Official Sponsor & Partner</h2><div className="sponsor-list">{(content.sponsors || contentDefaults.sponsors).map((item: any) => <span key={item.id}>{item.title || item.name}</span>)}</div></section>
-    <footer><div className="shell footer-grid"><div className="footer-brand"><a className="brand" href="#beranda"><span className="brand-mark">P</span><span><b>PORWANAS</b><small>PEKAN OLAHRAGA WARTAWAN NASIONAL</small></span></a><p>Ajang olahraga dan silaturahmi insan pers Indonesia.</p></div><div><h4>MENU UTAMA</h4><a href="#beranda">Beranda</a><a href={registrationUrl} target="_blank" rel="noreferrer">Pendaftaran</a><a href="#agenda">Agenda</a></div><div><h4>INFORMASI</h4><a href="#struktur-organisasi">Struktur Organisasi</a><a href="#hasil-verifikasi">Hasil Verifikasi</a></div></div><div className="shell copyright">© 2026 PORWANAS. Seluruh hak cipta dilindungi.</div></footer>
+    <footer><div className="shell copyright">© 2026 PORWANAS. Seluruh hak cipta dilindungi.</div></footer>
   </main>;
 }
 
