@@ -7,8 +7,8 @@
  * 5. Salin URL /exec ke environment variable APPS_SCRIPT_URL di Vercel.
  */
 const CONFIG = {
-  ADMIN_EMAIL: 'admin@porwanas.id', // GANTI sebelum setupPorwanas() dijalankan
-  ADMIN_PASSWORD: 'GANTI_PASSWORD_ADMIN', // GANTI sebelum setupPorwanas() dijalankan
+  ADMIN_USERNAME: 'admin',
+  ADMIN_PASSWORD: 'admin', // Ganti setelah login pertama melalui menu Akun & Keamanan.
   SESSION_HOURS: 8,
 };
 
@@ -23,12 +23,13 @@ const PARTICIPANT_EXTRA = ['registration_id', 'verification_status', 'verificati
 
 function setupPorwanas() {
   const ss = SpreadsheetApp.getActive();
-  sheet_(ss, 'Admin', ['email', 'password_hash', 'name', 'active']);
+  const adminSheet = sheet_(ss, 'Admin', ['username', 'password_hash', 'name', 'active']);
+  ensureHeaders_(adminSheet, ['username', 'password_hash', 'name', 'active']);
   sheet_(ss, 'Sessions', ['token', 'email', 'expires_at']);
   Object.keys(CONTENT_SHEETS).forEach(key => sheet_(ss, CONTENT_SHEETS[key][0], CONTENT_SHEETS[key][1]));
   const admin = readRows_('Admin');
-  if (!admin.some(row => String(row.email).toLowerCase() === CONFIG.ADMIN_EMAIL.toLowerCase())) {
-    appendObject_('Admin', { email: CONFIG.ADMIN_EMAIL.toLowerCase(), password_hash: hash_(CONFIG.ADMIN_PASSWORD), name: 'Administrator PORWANAS', active: 'TRUE' });
+  if (!admin.some(row => String(row.username).toLowerCase() === CONFIG.ADMIN_USERNAME.toLowerCase())) {
+    appendObject_('Admin', { username: CONFIG.ADMIN_USERNAME.toLowerCase(), password_hash: hash_(CONFIG.ADMIN_PASSWORD), name: 'Administrator PORWANAS', active: 'TRUE' });
   }
   return 'Setup selesai. Hubungkan Google Form ke Sheet ini. Tab respons Google Form akan otomatis terbaca oleh dashboard.';
 }
@@ -53,17 +54,35 @@ function protectedAction_(input) {
   if (input.action === 'content') return { items: readRows_(CONTENT_SHEETS[input.section][0]) };
   if (input.action === 'updateParticipant') return updateParticipant_(input);
   if (input.action === 'saveContent') return saveContent_(input);
+  if (input.action === 'changeCredentials') return changeCredentials_(input);
   throw new Error('Aksi tidak dikenali.');
 }
 
 function login_(input) {
-  const email = String(input.email || '').trim().toLowerCase();
+  const username = String(input.username || input.email || '').trim().toLowerCase();
   const password = String(input.password || '');
-  const admin = readRows_('Admin').find(row => String(row.email).toLowerCase() === email && String(row.active).toUpperCase() !== 'FALSE');
+  const admin = readRows_('Admin').find(row => String(row.username || row.email).toLowerCase() === username && String(row.active).toUpperCase() !== 'FALSE');
   if (!admin || admin.password_hash !== hash_(password)) throw new Error('Email atau password salah.');
   const token = Utilities.getUuid() + Utilities.getUuid();
-  appendObject_('Sessions', { token, email, expires_at: new Date(Date.now() + CONFIG.SESSION_HOURS * 3600 * 1000).toISOString() });
-  return { token, admin: { name: admin.name || 'Administrator', email } };
+  appendObject_('Sessions', { token, email: username, expires_at: new Date(Date.now() + CONFIG.SESSION_HOURS * 3600 * 1000).toISOString() });
+  return { token, admin: { name: admin.name || 'Administrator', username } };
+}
+
+function changeCredentials_(input) {
+  const current = requireSession_(input.token);
+  const oldPassword = String(input.oldPassword || '');
+  const newUsername = String(input.newUsername || '').trim().toLowerCase();
+  const newPassword = String(input.newPassword || '');
+  if (!/^[a-z0-9._-]{3,32}$/.test(newUsername)) throw new Error('Username harus 3–32 karakter: huruf kecil, angka, titik, garis bawah, atau minus.');
+  if (newPassword.length < 8) throw new Error('Password baru minimal 8 karakter.');
+  const sh = SpreadsheetApp.getActive().getSheetByName('Admin'); ensureHeaders_(sh, ['username', 'password_hash', 'name', 'active']);
+  const rows = readRows_('Admin'); const mine = rows.find(row => String(row.username || row.email).toLowerCase() === String(current.email).toLowerCase());
+  if (!mine || mine.password_hash !== hash_(oldPassword)) throw new Error('Password lama tidak sesuai.');
+  if (rows.some(row => row !== mine && String(row.username || row.email).toLowerCase() === newUsername)) throw new Error('Username itu sudah dipakai.');
+  const rowIndex = rows.indexOf(mine) + 2; const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getDisplayValues()[0];
+  sh.getRange(rowIndex, headers.indexOf('username') + 1).setValue(newUsername);
+  sh.getRange(rowIndex, headers.indexOf('password_hash') + 1).setValue(hash_(newPassword));
+  return { changed: true };
 }
 
 function requireSession_(token) {
@@ -119,6 +138,7 @@ function saveContent_(input) {
 function formSheet_() { const ss = SpreadsheetApp.getActive(); return ss.getSheets().find(sh => /^Form Responses|^Respons Form/i.test(sh.getName())) || ss.getSheetByName('Pendaftar'); }
 function ensureParticipantColumns_(sh) { const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getDisplayValues()[0]; PARTICIPANT_EXTRA.forEach(head => { if (headers.indexOf(head) < 0) { sh.getRange(1, sh.getLastColumn() + 1).setValue(head); headers.push(head); } }); }
 function sheet_(ss, name, headers) { const sh = ss.getSheetByName(name) || ss.insertSheet(name); if (sh.getLastRow() === 0) sh.getRange(1, 1, 1, headers.length).setValues([headers]); return sh; }
+function ensureHeaders_(sh, wanted) { const headers = sh.getRange(1, 1, 1, Math.max(sh.getLastColumn(), 1)).getDisplayValues()[0]; wanted.forEach(head => { if (headers.indexOf(head) < 0) { sh.getRange(1, sh.getLastColumn() + 1).setValue(head); headers.push(head); } }); }
 function readRows_(name) { const sh = SpreadsheetApp.getActive().getSheetByName(name); if (!sh || sh.getLastRow() < 2) return []; const values = sh.getDataRange().getDisplayValues(); const headers = values.shift(); return values.filter(row => row.some(v => v !== '')).map(row => { const obj = {}; headers.forEach((head, i) => obj[head] = row[i]); return obj; }); }
 function appendObject_(name, item) { const sh = SpreadsheetApp.getActive().getSheetByName(name); const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getDisplayValues()[0]; sh.appendRow(headers.map(head => item[head] || '')); }
 function pick_(map, names) { for (let i = 0; i < names.length; i++) if (map[names[i]]) return map[names[i]]; return ''; }
